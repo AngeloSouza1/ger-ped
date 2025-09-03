@@ -8,7 +8,8 @@ export async function GET() {
       orderBy: { name: 'asc' },
     });
     return NextResponse.json(rows); // SEMPRE JSON
-  } catch (e) {
-    return NextResponse.json({ error: 'Erro ao listar clientes' }, { status: 500 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: '...' }, { status: 500 });
   }
 }
