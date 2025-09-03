@@ -1,17 +1,22 @@
-"use client";
-import { useState } from "react";
+// components/logo.tsx
+import Image from 'next/image';
+import clsx from 'clsx';
 
-export default function Logo({ className = "h-6 w-6" }: { className?: string }) {
-  const [err, setErr] = useState(false);
-  if (err) {
-    return <div className={`${className} rounded-sm ring-1 ring-gray-200 dark:ring-gray-800 bg-gray-200 dark:bg-gray-800`} aria-label="Logo" />;
-  }
+type Props = {
+  size?: number;
+  className?: string;
+  alt?: string;
+};
+
+export default function Logo({ size = 28, className, alt = 'Logo' }: Props) {
   return (
-    <img
+    <Image
       src="/logo.svg"
-      alt="Logo"
-      className={`${className} rounded-sm ring-1 ring-gray-200 dark:ring-gray-800`}
-      onError={() => setErr(true)}
+      alt={alt}
+      width={size}
+      height={size}
+      priority
+      className={clsx('inline-block', className)}
     />
   );
 }
