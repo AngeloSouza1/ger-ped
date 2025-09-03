@@ -2,26 +2,56 @@
   "name": "gerador-pedidos",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.18"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start -p ${PORT:-3000}",
+    "lint": "next lint",
+
+    "prepare": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "prisma:studio": "prisma studio",
+
+    "seed": "npm run db:seed"
   },
   "dependencies": {
+    "@prisma/client": "^6.15.0",
+    "bcryptjs": "^2.4.3",
+    "googleapis": "^159.0.0",
+    "jose": "^6.1.0",
+    "next": "15.5.2",
+    "next-themes": "^0.4.6",
+    "nodemailer": "^6.9.13",
+    "puppeteer": "^24.18.0",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "next": "15.5.2"
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
+    "autoprefixer": "^10.4.21",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
-    "@eslint/eslintrc": "^3"
+    "postcss": "^8.5.6",
+    "prisma": "^6.15.0",
+    "tailwindcss": "^4.1.12",
+    "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "postcss": {
+    "plugins": {
+      "@tailwindcss/postcss": {}
+    }
   }
 }

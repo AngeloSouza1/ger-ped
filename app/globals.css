@@ -1,0 +1,446 @@
+/* Tailwind v4 */
+@import "tailwindcss";
+
+/* =========================
+   TOKENS / TEMAS
+   ========================= */
+:root {
+  color-scheme: light;
+  --bg:        #f7f7f8;   /* fundo da página */
+  --fg:        #0b0f19;   /* texto padrão   */
+  --muted:     #6b7280;   /* textos fracos  */
+
+  --card-bg:   #ffffff;
+  --card-brd:  #e5e7eb;
+  --card-sh:   0 1px 2px rgba(0,0,0,.05);
+
+  --thead-bg:  #f9fafb;
+  --thead-fg:  #374151;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:        #0b0f19;
+  --fg:        #eef2ff;
+  --muted:     #a1a1aa;
+
+  --card-bg:   #111827;
+  --card-brd:  #1f2937;
+  --card-sh:   0 1px 2px rgba(0,0,0,.25);
+
+  --thead-bg:  #0f172a;
+  --thead-fg:  #e5e7eb;
+}
+
+/* =========================
+   BASE
+   ========================= */
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* =========================
+   COMPONENTES SIMPLES
+   ========================= */
+.card {
+  border-radius: 1rem;                 /* ~ rounded-2xl */
+  border: 1px solid var(--card-brd);   /* ~ border */
+  background: var(--card-bg);          /* ~ bg */
+  padding: 1rem;                       /* ~ p-4 */
+  box-shadow: var(--card-sh);          /* ~ shadow-sm */
+}
+@media (min-width: 768px) { .card { padding: 1.5rem; } } /* ~ md:p-6 */
+
+.table-header {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--thead-bg);
+  color: var(--thead-fg);
+}
+
+/* Impressão sempre claro */
+@media print {
+  html[data-theme="dark"] body { background:#fff; color:#000; }
+  .no-print { display: none !important; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* (opcional) container utilitário sem @apply */
+.container-app {
+  margin-left: auto; margin-right: auto; /* mx-auto */
+  max-width: 80rem;                      /* ~ max-w-7xl */
+  padding-left: 1rem; padding-right: 1rem;
+}
+@media (min-width: 768px) {
+  .container-app { padding-left: 1.5rem; padding-right: 1.5rem; }
+}
+
+/* esconder overlay dev do Next */
+:root button[aria-label*="developer overlay"] { display: none !important; }
+
+
+/* Dark: texto escuro nos inputs Cliente/Observação (fundo branco) */
+html[data-theme="dark"] .input-plain {
+  background: #ffffff !important;
+  color: #0b0f19 !important;      /* texto escuro */
+  border-color: #e5e7eb !important;
+  caret-color: #0b0f19;
+}
+html[data-theme="dark"] .input-plain::placeholder {
+  color: #6b7280; /* gray-600 */
+}
+html[data-theme="dark"] select.input-plain option {
+  color: #0b0f19;
+  background: #ffffff;
+}
+
+/* === Botões ícone compactos (36x36) === */
+.icon-btn{
+  width:36px;height:36px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border-radius:10px;border:1px solid var(--card-brd);
+  transition:background .15s ease,opacity .15s ease,filter .15s ease;
+}
+.icon-btn svg{width:18px;height:18px}
+
+.icon-btn--ghost{background:transparent;color:var(--fg)}
+.icon-btn--blue{background:#2563eb;border-color:transparent;color:#fff}
+.icon-btn--blue:hover{background:#1d4ed8}
+.icon-btn--emerald{background:#059669;border-color:transparent;color:#fff}
+.icon-btn--emerald:hover{background:#047857}
+.icon-btn--green{background:#16a34a;border-color:transparent;color:#fff}
+.icon-btn--green:hover{background:#15803d}
+
+.icon-btn[disabled], .icon-btn.disabled{opacity:.5;pointer-events:none}
+
+/* Dark: hover leve no ghost */
+html[data-theme="dark"] .icon-btn--ghost:hover{background:rgba(255,255,255,.06)}
+/* ===== Light mode — contraste e harmonia melhores ===== */
+:root{
+  /* Fundo geral quase branco, frio */
+  --bg:#f8fafc;           /* slate-50 */
+  --fg:#0b0f19;           /* tinta principal */
+  --muted:#475569;        /* slate-600: textos secundários */
+
+  /* Card mais escuro que o bg, mas suave */
+  --card-bg:#eef2f6;      /* entre gray-100 e 200 com tom frio */
+  --card-brd:#000000;     /* borda PRETA (pedido anterior) */
+
+  /* Derivados do card para manter harmonia (10–12% mais escuro) */
+  --thead-bg: color-mix(in oklab, var(--card-bg) 88%, #000 12%);
+  --thead-fg:#0b1220;
+
+  /* Zebra/hover com leves variações do card */
+  --row-alt:   color-mix(in oklab, var(--card-bg) 95%, #000 5%);
+  --row-hover: color-mix(in oklab, var(--card-bg) 90%, #000 10%);
+
+  /* Inputs com borda preta no claro */
+  --input-brd:#000000;
+
+  /* Anel de foco legível */
+  --ring:#111827;
+
+  /* Sombra suave e limpa para dar separação sem pesar */
+  --shadow: 0 1px 1px rgba(0,0,0,.04), 0 8px 22px rgba(0,0,0,.08);
+}
+
+/* Dark mantém como já estava (ajuste só se quiser) */
+html[data-theme="dark"]{
+  --bg:#0b0f19;
+  --fg:#e5e7eb;
+  --muted:#9aa3af;
+
+  --card-bg:#0f172a;
+  --card-brd:#1f2937;
+
+  --thead-bg:#0b0f19;
+  --thead-fg:#e5e7eb;
+  --row-alt:   color-mix(in oklab, #ffffff 3%, transparent);
+  --row-hover: color-mix(in oklab, #ffffff 6%, transparent);
+
+  --input-brd:#475569;
+  --ring:#94a3b8;
+
+  --shadow: 0 1px 1px rgba(0,0,0,.35), 0 10px 34px rgba(0,0,0,.45);
+}
+
+/* ===== Aplicação dos tokens ===== */
+body{ background:var(--bg); color:var(--fg); }
+
+.card{
+  background:var(--card-bg);
+  border-color:var(--card-brd) !important;
+  box-shadow: var(--shadow);
+}
+
+.table-header{
+  background:var(--thead-bg);
+  color:var(--thead-fg);
+  position: sticky; top: 0; z-index: 10;
+}
+
+/* zebra + hover coerentes com o card */
+.table-zebra tbody tr:nth-child(odd){ background: var(--row-alt); }
+.table-zebra tbody tr:hover{ background: var(--row-hover); }
+
+/* inputs com borda preta no claro */
+.input-plain{
+  border-color:var(--input-brd) !important;
+  color:var(--fg);
+  background:#fff;
+}
+.input-plain:focus{
+  outline:none;
+  border-color:var(--input-brd) !important;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 28%, transparent);
+}
+
+/* ghost icon com realce sutil e coerente */
+.icon-btn--ghost{ background:transparent; color:var(--fg); }
+.icon-btn--ghost:hover{ background: color-mix(in oklab, var(--fg) 6%, transparent); }
+
+/* impressão limpa */
+@media print{
+  body{ background:#fff !important; color:#000 !important; }
+  .card{ background:#fff !important; border-color:#000 !important; box-shadow:none !important; }
+  .table-header{ background:#fff !important; color:#000 !important; }
+}
+
+
+/* ---------- DUPLICADO PARA IMPRESSÃO (PDF) ---------- */
+@media print {
+  /* Página A4 retrato, margens confortáveis */
+  @page { size: A4 portrait; margin: 12mm; }
+
+  /* Esconde a UI normal na impressão */
+  .screen-only { display: none !important; }
+
+  /* Mostra apenas o layout de impressão */
+  .only-print { display: block !important; }
+
+  /* Container da página com 2 vias empilhadas e separador pontilhado */
+  .print-sheet {
+    display: grid;
+    grid-template-rows: 1fr auto 1fr;
+    row-gap: 8mm;
+  }
+
+  .print-cut {
+    border-top: 1px dashed #000;
+    margin: 4mm 0;
+  }
+
+  /* Cada via */
+  .copy {
+    background: #fff !important;
+    border: 1px solid #000 !important;
+    padding: 8mm;
+    border-radius: 2mm;
+    color: #000 !important;
+  }
+
+  .copy-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 6mm;
+    align-items: center;
+    margin-bottom: 4mm;
+  }
+
+  .copy-title {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .copy-sub {
+    font-size: 11px;
+  }
+  .copy-badge {
+    font-size: 10px;
+    border: 1px solid #000;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+
+  .copy-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+    margin-bottom: 4mm;
+    font-size: 11px;
+  }
+  .copy-field label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 1mm;
+  }
+  .copy-field div {
+    border: 1px solid #000;
+    padding: 2.5mm;
+    min-height: 10mm;
+  }
+
+  .copy-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  .copy-table th, .copy-table td {
+    border: 1px solid #000;
+    padding: 2.5mm 2mm;
+  }
+  .copy-table thead th {
+    background: #f4f4f4;
+    font-weight: 700;
+    text-align: left;
+  }
+  .copy-table td.num, .copy-table th.num { text-align: right; white-space: nowrap; }
+  .copy-table td.center, .copy-table th.center { text-align: center; }
+
+  .copy-footer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4mm;
+    align-items: end;
+    margin-top: 4mm;
+    font-size: 11px;
+  }
+  .sign-line {
+    margin-top: 10mm;
+    text-align: center;
+  }
+  .sign-line span {
+    display: inline-block;
+    border-top: 1px solid #000;
+    padding-top: 2mm;
+    min-width: 55mm;
+  }
+}
+/* ---------- IMPRESSÃO (PDF) COMPACTA: 2 VIAS EM 1 FOLHA ---------- */
+@media print {
+  /* folha A4 com margem menor */
+  @page { size: A4 portrait; margin: 8mm; }
+
+  /* Esconde a UI normal; mostra somente o layout de impressão */
+  .screen-only { display: none !important; }
+  .only-print { display: block !important; }
+
+  /* Contêiner com 2 vias empilhadas e separador */
+  .print-sheet {
+    display: grid;
+    grid-template-rows: auto auto auto;
+    row-gap: 5mm;
+  }
+  .print-cut {
+    border-top: 1px dashed #000;
+    margin: 2.5mm 0;
+  }
+
+  /* VIA */
+  .copy {
+    background: #fff !important;
+    border: 0.6pt solid #000 !important;
+    padding: 5mm;
+    border-radius: 2mm;
+    color: #000 !important;
+  }
+
+  /* Cabeçalho da via — compacto */
+  .copy-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 4mm;
+    align-items: center;
+    margin-bottom: 3mm;
+  }
+  .copy-title { font-size: 13px; font-weight: 700; line-height: 1.15; }
+  .copy-sub   { font-size: 9px;  line-height: 1.2; }
+  .copy-badge {
+    font-size: 9px;
+    border: 0.6pt solid #000;
+    padding: 1.5mm 3mm;
+    border-radius: 999px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* Grid Cliente/Observação */
+  .copy-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3mm;
+    margin-bottom: 3mm;
+    font-size: 9.5px;
+    line-height: 1.2;
+  }
+  .copy-field label {
+    display: block;
+    font-size: 8.5px;
+    font-weight: 700;
+    margin-bottom: 1mm;
+  }
+  .copy-field div {
+    border: 0.6pt solid #000;
+    padding: 2mm;
+    min-height: 8mm;
+    word-break: break-word;
+  }
+
+  /* Tabela resumida — ultra compacta */
+  .copy-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;        /* evita “dançar” */
+    font-size: 9.5px;
+    line-height: 1.15;
+  }
+  .copy-table th, .copy-table td {
+    border: 0.6pt solid #000;
+    padding: 1.8mm 1.6mm;
+    vertical-align: top;
+  }
+  .copy-table thead th {
+    background: #f4f4f4;
+    font-weight: 700;
+    text-align: left;
+  }
+  .copy-table td.num, .copy-table th.num { text-align: right; white-space: nowrap; }
+  .copy-table td.center, .copy-table th.center { text-align: center; white-space: nowrap; }
+  /* Descrição em 1 linha com reticências (ganho de altura) */
+  .copy-table td.desc {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Rodapé + Assinatura */
+  .copy-footer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 3mm;
+    align-items: end;
+    margin-top: 3mm;
+    font-size: 9.5px;
+  }
+  .sign-line { margin-top: 7mm; text-align: center; }
+  .sign-line span {
+    display: inline-block;
+    border-top: 0.6pt solid #000;
+    padding-top: 2mm;
+    min-width: 45mm;
+  }
+
+  /* ---------- AUTO-COMPACTAÇÃO POR DENSIDADE ---------- */
+  /* se tiver muitos itens, reduzimos levemente a escala */
+  .print-scale-sm { zoom: 0.92; }
+  .print-scale-xs { zoom: 0.85; }
+  /* Fallback para navegadores sem zoom (ex.: Firefox) */
+  @supports not (zoom: 1) {
+    .print-scale-sm { transform: scale(.92); transform-origin: top left; }
+    .print-scale-xs { transform: scale(.85); transform-origin: top left; }
+  }
+}
+

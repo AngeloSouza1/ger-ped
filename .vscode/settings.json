@@ -1,0 +1,20 @@
+{
+    "css.lint.unknownAtRules": "ignore",
+    "scss.lint.unknownAtRules": "ignore",
+    "less.lint.unknownAtRules": "ignore",
+  
+    "tailwindCSS.validate": true,
+    "tailwindCSS.emmetCompletions": true,
+    "tailwindCSS.experimental.configFile": "${workspaceFolder}/tailwind.config.js",
+    "tailwindCSS.includeLanguages": {
+      "typescript": "javascript",
+      "typescriptreact": "javascriptreact",
+      "html": "html",
+      "css": "css"
+    },
+  
+    // sugestões dentro de "className"
+    "editor.quickSuggestions": { "strings": true },
+    "editor.inlineSuggest.enabled": true
+  }
+  

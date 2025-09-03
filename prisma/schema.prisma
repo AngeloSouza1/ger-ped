@@ -1,0 +1,94 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // dev com SQLite
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id           String          @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  document     String?  @unique 
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  zipCode      String?
+  notes        String?
+  prices       CustomerPrice[]
+  orders       Order[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Product {
+  id          String          @id @default(cuid())
+  name        String
+  sku         String?         @unique
+  unit        String?
+  price       Decimal // <- sem @db.Decimal
+  description String?
+  active      Boolean         @default(true)
+  prices      CustomerPrice[]
+  items       OrderItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model CustomerPrice {
+  id         String   @id @default(cuid())
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId String
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  String
+  price      Decimal // <- sem @db.Decimal
+
+  @@unique([customerId, productId])
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  number     Int         @default(1)
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  customerId String
+  status     OrderStatus @default(DRAFT)
+  notes      String?
+  total      Decimal // <- sem @db.Decimal
+  items      OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  DRAFT
+  SENT
+  CLOSED
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  name      String
+  unit      String?
+  unitPrice Decimal // <- sem @db.Decimal
+  quantity  Int
+  total     Decimal // <- sem @db.Decimal
+}
+
+ model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
