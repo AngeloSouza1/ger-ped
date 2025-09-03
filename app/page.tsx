@@ -3,9 +3,42 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
+
+
 type Customer = { id: string; name: string; email?: string | null; phone?: string | null };
 type Product  = { id: string; name: string; unit?: string | null; price: number | string };
 type CustPrice = { customerId: string; productId: string; price: number | string };
+
+// +++ TIPOS NOVOS (adicione no topo do arquivo)
+type OrderItemAPI = {
+  name?: string;
+  unit?: string | null;
+  quantity?: number;
+  qty?: number;
+  unitPrice?: number;
+  price?: number;
+  total?: number;
+  product?: { name?: string; unit?: string | null; price?: number } | null;
+};
+
+type FlatItem = {
+  name: string;
+  unit: string | null;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
+type OrderPreview = {
+  id?: string;
+  number: number | string;
+  customer: { id?: string; name?: string; email?: string | null; phone?: string | null } | null;
+  notes?: string;
+  items: FlatItem[];
+  total: number;
+  issuedAt: string;
+};
+
 
 type ItemRow = {
   productId: string;
@@ -21,7 +54,7 @@ type OrderRow = {
   number: number | string;
   customer?: { id?: string; name?: string; email?: string | null; phone?: string | null } | null;
   total: number;
-  items?: any[];
+  items?: OrderItemAPI[];
   createdAt?: string;
   notes?: string;
 };
@@ -48,34 +81,34 @@ export default function Page() {
   const [customerId, setCustomerId] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ItemRow[]>([]);
-  const [saved, setSaved] = useState<any>(null);
+  const [saved, setSaved] = useState<OrderPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const getJson = useCallback(async (url: string, signal?: AbortSignal) => {
-    const r = await fetch(url, { signal, credentials: 'include' });
+  const getJson = useCallback(async <T,>(url: string, signal?: AbortSignal): Promise<T> => {
+    const r = await fetch(url, { signal, credentials: 'include', cache: 'no-store' });
     if (r.status === 401) {
-      const to = '/login?callbackUrl=' + encodeURIComponent(location.pathname + location.search);
-      router.replace(to);       // tenta SPA
-      location.assign(to);      // garante com hard redirect
+      router.replace('/login?callbackUrl=' + encodeURIComponent(location.pathname + location.search));
       throw new Error('unauthorized');
     }
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
+    return r.json() as Promise<T>;
   }, [router]);
   
   
+  
 
-  const logout = async (e?: React.MouseEvent) => {
+  const logout = async (e?: React.MouseEvent<HTMLButtonElement>) => {
     e?.preventDefault();
     try {
-      await fetch('/api/logout', { method: 'POST', credentials: 'include', cache: 'no-store' });
+      await fetch('/api/logout', { method: 'POST', cache: 'no-store', credentials: 'include' });
     } finally {
       const next = '/login?callbackUrl=' + encodeURIComponent(location.pathname + location.search);
       try { router.replace(next); } catch {}
-      location.assign(next); // hard redirect
+      location.assign(next);
     }
   };
+  
   
   
 
@@ -130,36 +163,47 @@ export default function Page() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }
 
-  function normalizePhoneBR(raw?: string | null) {
+  function normalizePhoneBR(raw?: string | null): string {
     if (!raw) return '';
-    let d = String(raw).replace(/\D/g, '');    // só dígitos
+    let d = String(raw).replace(/\D/g, '');
     if (d.startsWith('0')) d = d.replace(/^0+/, '');
-    // se vier sem DDI e com 10/11 dígitos, prefixa 55 (Brasil)
     if (!d.startsWith('55') && (d.length === 10 || d.length === 11)) d = '55' + d;
-    // remove + se existir
     return d.replace(/^\+/, '');
   }
   
-  function buildWhatsAppSummary(o: any, maxItems = 3) {
+
+  type ItemSummary = { name: string; quantity: number };
+
+function normalizeItems(o: OrderPreview | OrderRow): ItemSummary[] {
+  // Em OrderPreview os itens já são FlatItem; em OrderRow podem ser OrderItemAPI
+  const list = (o.items ?? []) as Array<FlatItem | OrderItemAPI>;
+  return list.map((it) => {
+    const name =
+      ('name' in it && it.name)
+        ? it.name
+        : (('product' in it && it.product?.name) ? it.product.name! : 'Item');
+
+    const quantity =
+      ('quantity' in it && typeof it.quantity === 'number')
+        ? it.quantity
+        : (('qty' in it && typeof it.qty === 'number') ? it.qty! : 0);
+
+    return { name, quantity };
+  });
+}
+
+  function buildWhatsAppSummary(o: OrderPreview | OrderRow, maxItems = 3): string {
     const cliente = o.customer?.name ? ` — ${o.customer.name}` : '';
     const header  = `Pedido #${o.number ?? '—'}${cliente}`;
   
-    const itens = Array.isArray(o.items) ? o.items : [];
-    const vis   = itens.slice(0, maxItems).map((it: any) => {
-      const nome = it.name ?? it.product?.name ?? 'Item';
-      const qtd  = Number(it.quantity ?? it.qty ?? 0) || 0;
-      return `${nome} x ${qtd}`;
-    });
+    const itens   = normalizeItems(o);
+    const vis     = itens.slice(0, maxItems).map((it) => `${it.name} x ${it.quantity}`);
+    const extras  = itens.length > maxItems ? ` … +${itens.length - maxItems} itens` : '';
+    const linhaItens = itens.length ? `Itens (${itens.length}): ${vis.join(', ')}${extras}` : 'Itens: —';
   
-    const extras = itens.length > maxItems ? ` … +${itens.length - maxItems} itens` : '';
-    const linhaItens = itens.length
-      ? `Itens (${itens.length}): ${vis.join(', ')}${extras}`
-      : 'Itens: —';
+    const total   = `Total: ${brl.format(Number(o.total || 0))}`;
+    const obs     = o.notes ? `Obs: ${o.notes}` : null;
   
-    const total = `Total: ${brl.format(Number(o.total || 0))}`;
-    const obs   = o.notes ? `Obs: ${o.notes}` : null;
-  
-    // Deixe como string “normal”; a URL será codificada ao montar o link
     return [header, linhaItens, total, obs].filter(Boolean).join('\n');
   }
 
@@ -216,9 +260,9 @@ export default function Page() {
     (async () => {
       try {
         const [c, p, cp] = await Promise.all([
-          getJson('/api/customers', ac.signal),
-          getJson('/api/products', ac.signal),
-          getJson('/api/customer-prices', ac.signal),
+          getJson<Customer[]>('/api/customers', ac.signal),
+          getJson<Product[]>('/api/products', ac.signal),
+          getJson<CustPrice[]>('/api/customer-prices', ac.signal),
         ]);
         setCustomers(c);
         setProducts(p);
@@ -356,22 +400,27 @@ export default function Page() {
   async function saveOrder() {
     if (!customerId) { pushToast('warning', 'Selecione um cliente.', { title: 'Validação' }); return; }
     if (items.length === 0) { pushToast('warning', 'Adicione pelo menos 1 item.', { title: 'Validação' }); return; }
+  
     const payload = { customerId, notes, items };
     const res = await fetch('/api/orders', {
       method : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body   : JSON.stringify(payload),
     });
+  
+    const json = await res.json().catch(() => ({})) as Partial<OrderRow>;
+  
     if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      pushToast('error', j?.error ? String(j.error) : 'Falha ao salvar pedido.', { title: 'Erro' });
+      pushToast('error', (json as { error?: string })?.error || 'Falha ao salvar pedido.', { title: 'Erro' });
       return;
     }
-    const json = await res.json();
-    setSaved(json);
-    pushToast('success', `Pedido #${json.number} salvo!`, { title: 'Sucesso' });
+  
+    const flat = flattenOrderForPreview(json as OrderRow);
+    setSaved(flat);
+    pushToast('success', `Pedido #${flat.number} salvo!`, { title: 'Sucesso' });
     resetForm();
   }
+  
 
   function printPage() { window.print(); }
 
@@ -388,14 +437,13 @@ export default function Page() {
   //   return encodeURI(`${header}%0A${lines}%0A${totalLine}${obs ? '%0A'+obs : ''}`);
   // }
 
-  function buildEmailParts(o: any) {
-     // Reaproveita o resumo do pedido como corpo do e-mail
-       const body = buildWhatsAppSummary(o, 8);
-       const subject = `Pedido #${o.number ?? '—'} — ${o.customer?.name ?? ''}`;
-       const to = o.customer?.email || '';
-       const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-       return { to, subject, body, mailto };
-      }
+  function buildEmailParts(o: OrderPreview | OrderRow): { to: string; subject: string; body: string; mailto: string } {
+    const body    = buildWhatsAppSummary(o, 8);
+    const subject = `Pedido #${o.number ?? '—'} — ${o.customer?.name ?? ''}`;
+    const to      = o.customer?.email || '';
+    const mailto  = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return { to, subject, body, mailto };
+  }
 
 
 
@@ -403,33 +451,29 @@ export default function Page() {
   const emitido = new Date().toLocaleString('pt-BR');
 
   // Preview achatado p/ impressão (usa "saved" se existir)
-  const preview = (() => {
+  const preview: OrderPreview = (() => {
     const base = saved ?? {
       number  : '—',
-      customer: selectedCustomer ? { name: selectedCustomer.name, email: selectedCustomer.email, phone: selectedCustomer.phone } // + phone
-      : null,
+      customer: selectedCustomer
+        ? { name: selectedCustomer.name, email: selectedCustomer.email, phone: selectedCustomer.phone }
+        : null,
       notes,
-      items   : items.map(it => {
+      items   : items.map<FlatItem>(it => {
         const p = products.find(pp => pp.id === it.productId);
         return {
           name     : p?.name ?? it.name,
-          unit     : it.unit ?? p?.unit ?? '-',
+          unit     : (it.unit ?? p?.unit ?? null) ?? null,
           quantity : it.quantity,
           unitPrice: it.unitPrice,
           total    : it.total,
         };
       }),
       total,
-    };
-    return {
-      number  : base.number,
-      customer: base.customer,
-      notes   : base.notes,
-      items   : base.items ?? [],
-      total   : base.total,
       issuedAt: new Date().toLocaleString('pt-BR'),
-    };
+    } as OrderPreview;
+    return base;
   })();
+  
 
  // ===== Impressão (2 vias na mesma folha sempre que couber) =====
 const rows = preview.items?.length ?? 0;
@@ -448,17 +492,17 @@ const printDensityClass =
 
 
   // VIA de impressão
-   function PrintSlip({
-       o,
-       copyLabel,
-       minimal = false,
-       onPrint,
-     }: {
-       o: any;
-       copyLabel: string;
-       minimal?: boolean;
-       onPrint?: (() => void) | null;
-     }) {
+    function PrintSlip({
+      o,
+      copyLabel,
+      minimal = false,
+      onPrint,
+    }: {
+      o: OrderPreview;
+      copyLabel: string;
+      minimal?: boolean;
+      onPrint?: (() => void) | null;
+    }) {
 
     return (
       <div className="copy">
@@ -723,7 +767,7 @@ const printDensityClass =
   }
 
   // PEDIDOS
-  const [orderPreview, setOrderPreview] = useState<any | null>(null);
+  const [orderPreview, setOrderPreview] = useState<OrderPreview | null>(null);
   const [showOrders, setShowOrders] = useState(false);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState<string | null>(null);
@@ -745,9 +789,9 @@ const printDensityClass =
       try {
         setOrdersLoading(true);
         setOrdersError(null);
-        const data = await getJson('/api/orders?limit=100'); // << aqui
+        const data = await getJson<OrderRow[]>('/api/orders?limit=100');
         if (!ignore) setOrders(data || []);
-      } catch (e: any) {
+      } catch {
         if (!ignore) setOrdersError('Falha ao carregar pedidos.');
       } finally {
         if (!ignore) setOrdersLoading(false);
@@ -758,29 +802,26 @@ const printDensityClass =
   
 
 
-  async function sendOrderEmail(o: any) {
+  async function sendOrderEmail(o: OrderRow) {
     try {
       const res = await fetch(`/api/orders/${o.id}/email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: o.customer?.email,
-          order: o,
-          attachPdf: true, // <=== agora anexamos o PDF
-        }),
+        body: JSON.stringify({ to: o.customer?.email, order: o, attachPdf: true }),
       });
       if (res.ok) {
         pushToast('success', 'E-mail enviado com PDF!', { title: 'Pedidos' });
       } else {
         const j = await res.json().catch(() => ({}));
-        pushToast('error', j?.error || 'Falha ao enviar e-mail.', { title: 'Pedidos' });
+        pushToast('error', (j as { error?: string })?.error || 'Falha ao enviar e-mail.', { title: 'Pedidos' });
       }
-    } catch {
-      pushToast('error', 'Falha ao enviar e-mail.', { title: 'Pedidos' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Falha ao enviar e-mail.';
+      pushToast('error', msg, { title: 'Pedidos' });
     }
   }
   
-  async function downloadOrderPdf(o: any) {
+  async function downloadOrderPdf(o: OrderRow) {
     try {
       const res = await fetch(`/api/orders/${o.id}/pdf`, {
         method: 'POST',
@@ -798,49 +839,49 @@ const printDensityClass =
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-    } catch {
-      pushToast('error', 'Falha ao gerar/baixar o PDF.', { title: 'Pedidos' });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Falha ao gerar/baixar o PDF.';
+      pushToast('error', msg, { title: 'Pedidos' });
     }
   }
   
    // Converte OrderRow (API) para o formato do PrintSlip/preview
-  function flattenOrderForPreview(o: OrderRow) {
+   function flattenOrderForPreview(o: OrderRow): OrderPreview {
+    const items: FlatItem[] = (o.items ?? []).map((it) => {
+      const qty = Number(it.quantity ?? it.qty ?? 0);
+      const unitPrice = Number(it.unitPrice ?? it.price ?? it.product?.price ?? 0);
+      const total = Number(it.total ?? (qty * unitPrice));
+      return {
+        name     : it.name ?? it.product?.name ?? 'Item',
+        unit     : (it.unit ?? it.product?.unit ?? null) ?? null,
+        quantity : qty,
+        unitPrice,
+        total,
+      };
+    });
+  
+    const total =
+      typeof o.total === 'number'
+        ? o.total
+        : items.reduce((s, it) => s + it.total, 0);
+  
     return {
-      number  : o.number,
+      id: o.id,
+      number: o.number,
       customer: o.customer ?? null,
-      notes   : o.notes ?? '',
-      items   : (o.items ?? []).map((it: any) => {
-        const qty = Number(it.quantity ?? it.qty ?? 0);
-        const unitPrice = Number(it.unitPrice ?? it.price ?? it.product?.price ?? 0);
-        const total = Number(it.total ?? (qty * unitPrice));
-        return {
-          name     : it.name ?? it.product?.name ?? 'Item',
-          unit     : it.unit ?? it.product?.unit ?? '-',
-          quantity : qty,
-          unitPrice,
-          total,
-        };
-      }),
-      total   : Number(
-        o.total ??
-        (o.items ?? []).reduce((s: number, it: any) => {
-          const q  = Number(it.quantity ?? it.qty ?? 0);
-          const up = Number(it.unitPrice ?? it.price ?? it.product?.price ?? 0);
-          return s + Number(it.total ?? (q * up));
-        }, 0)
-      ),
+      notes: o.notes ?? '',
+      items,
+      total: Number(total),
       issuedAt: new Date().toLocaleString('pt-BR'),
     };
   }
 
   function printSavedOrder(o: OrderRow) {
     const flat = flattenOrderForPreview(o);
-    // Usa sua mesma área de preview/print (2 vias na mesma folha quando couber)
-    setSaved(flat as any);
+    setSaved(flat);
     setTimeout(() => window.print(), 30);
     setTimeout(() => setSaved(null), 800);
   }
-  
   
 
 
@@ -1051,12 +1092,14 @@ const printDensityClass =
 
                       <thead className="table-header">
                         <tr className="text-left text-xs font-semibold uppercase tracking-wide">
-                          <th className="px-3 py-2.5">Descrição do produto</th>
-                          <th className="px-3 py-2.5 text-center">UN</th>
-                          <th className="px-3 py-2.5">Preço</th>
-                          <th className="px-3 py-2.5">Qtd</th>
-                          <th className="px-3 py-2.5 text-right">Total</th>
-                          <th className="px-3 py-2.5"></th>
+                          {[
+                            <th key="desc" className="px-3 py-2.5">Descrição do produto</th>,
+                            <th key="un" className="px-3 py-2.5 text-center">UN</th>,
+                            <th key="preco" className="px-3 py-2.5">Preço</th>,
+                            <th key="qtd" className="px-3 py-2.5">Qtd</th>,
+                            <th key="total" className="px-3 py-2.5 text-right">Total</th>,
+                            <th key="vazio" className="px-3 py-2.5" />,
+                          ]}
                         </tr>
                       </thead>
 
@@ -1073,65 +1116,78 @@ const printDensityClass =
                           const prod = products.find(p => p.id === it.productId);
                           return (
                             <tr key={idx} className="align-top hover:bg-black/[.03]">
-                              <td className="px-3 py-2">
-                                <div className="space-y-1">
-                                  <select
-                                    value={it.productId}
-                                    onChange={(e) => onChangeProduct(idx, e.target.value)}
-                                    className="input-plain block w-full h-10 rounded-md border bg-white px-3 text-sm focus:border-gray-900 focus:ring-2 focus:ring-gray-900"
-                                  >
-                                    {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                  </select>
-                                  <div className="flex flex-wrap items-center gap-x-2 text-[11px]" style={{ color:'var(--muted)' }}>
-                                    <span className="truncate">{prod?.name ?? it.name}</span>
-                                    <span className="hidden sm:inline">•</span>
-                                    <span>{it.unit ?? prod?.unit ?? '-'}</span>
-                                    <span className="hidden sm:inline">•</span>
-                                    <span>{brl.format(Number(it.unitPrice || prod?.price || 0))} / un</span>
+                              {[
+                                <td key="prod" className="px-3 py-2">
+                                  <div className="space-y-1">
+                                    <select
+                                      value={it.productId}
+                                      onChange={(e) => onChangeProduct(idx, e.target.value)}
+                                      className="input-plain block w-full h-10 rounded-md border bg-white px-3 text-sm focus:border-gray-900 focus:ring-2 focus:ring-gray-900"
+                                    >
+                                      {products.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                      ))}
+                                    </select>
+                                    <div
+                                      className="flex flex-wrap items-center gap-x-2 text-[11px]"
+                                      style={{ color: 'var(--muted)' }}
+                                    >
+                                      <span className="truncate">{prod?.name ?? it.name}</span>
+                                      <span className="hidden sm:inline">•</span>
+                                      <span>{it.unit ?? prod?.unit ?? '-'}</span>
+                                      <span className="hidden sm:inline">•</span>
+                                      <span>{brl.format(Number(it.unitPrice || prod?.price || 0))} / un</span>
+                                    </div>
                                   </div>
-                                </div>
-                              </td>
+                                </td>,
 
-                              <td className="px-3 py-2 text-center align-middle">
-                                {it.unit ?? prod?.unit ?? '-'}
-                              </td>
+                                <td key="un" className="px-3 py-2 text-center align-middle">
+                                  {it.unit ?? prod?.unit ?? '-'}
+                                </td>,
 
-                              <td className="px-3 py-2">
-                                <input
-                                  type="number" step="0.01" min="0"
-                                  value={it.unitPrice}
-                                  onChange={e => updateItem(idx, { unitPrice: Number(e.target.value) })}
-                                  className="input-plain block w-full h-10 rounded-md border bg-white px-3 text-sm text-right focus:border-gray-900 focus:ring-2 focus:ring-gray-900"
-                                />
-                              </td>
+                                <td key="preco" className="px-3 py-2">
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={it.unitPrice}
+                                    onChange={e => updateItem(idx, { unitPrice: Number(e.target.value) })}
+                                    className="input-plain block w-full h-10 rounded-md border bg-white px-3 text-sm text-right focus:border-gray-900 focus:ring-2 focus:ring-gray-900"
+                                  />
+                                </td>,
 
-                              <td className="px-3 py-2">
-                                <input
-                                  type="number" min="1"
-                                  value={it.quantity}
-                                  onChange={e => updateItem(idx, { quantity: Number(e.target.value) })}
-                                  className="input-plain block w-full h-10 rounded-md border bg-white px-3 text-sm text-right focus:border-gray-900 focus:ring-2 focus:ring-gray-900"
-                                />
-                              </td>
+                                <td key="qtd" className="px-3 py-2">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={it.quantity}
+                                    onChange={e => updateItem(idx, { quantity: Number(e.target.value) })}
+                                    className="input-plain block w-full h-10 rounded-md border bg-white px-3 text-sm text-right focus:border-gray-900 focus:ring-2 focus:ring-gray-900"
+                                  />
+                                </td>,
 
-                              <td className="px-3 py-2 text-right font-medium align-middle">
-                                {brl.format(it.total)}
-                              </td>
+                                <td key="tot" className="px-3 py-2 text-right font-medium align-middle">
+                                  {brl.format(it.total)}
+                                </td>,
 
-                              <td className="px-3 py-2 text-right">
-                                <button
-                                  onClick={() => removeItem(idx)}
-                                  className="icon-btn icon-btn--ghost"
-                                  style={{ borderColor:'var(--card-brd)' }}
-                                  title="Remover item"
-                                  aria-label="Remover item"
-                                >
-                                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 3h6l1 2h5v2H3V5h5l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z"/></svg>
-                                </button>
-                              </td>
+                                <td key="rm" className="px-3 py-2 text-right">
+                                  <button
+                                    onClick={() => removeItem(idx)}
+                                    className="icon-btn icon-btn--ghost"
+                                    style={{ borderColor: 'var(--card-brd)' }}
+                                    title="Remover item"
+                                    aria-label="Remover item"
+                                  >
+                                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                      <path d="M9 3h6l1 2h5v2H3V5h5l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z"/>
+                                    </svg>
+                                  </button>
+                                </td>,
+                              ]}
                             </tr>
                           );
                         })}
+
                       </tbody>
 
                       {items.length > 0 && (
@@ -1263,14 +1319,16 @@ const printDensityClass =
 
               <div className="modal-body">
                 <table className="min-w-full text-sm">
-                  <thead className="table-header">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Nome</th>
-                      <th className="px-3 py-2 text-left">E-mail</th>
-                      <th className="px-3 py-2 text-left">Telefone</th> {/* + */}
-                      <th className="px-3 py-2 text-right">Ações</th>
-                    </tr>
-                  </thead>
+                <thead className="table-header">
+                  <tr>
+                    {[
+                      <th key="nome" className="px-3 py-2 text-left">Nome</th>,
+                      <th key="email" className="px-3 py-2 text-left">E-mail</th>,
+                      <th key="fone" className="px-3 py-2 text-left">Telefone</th>,
+                      <th key="acoes" className="px-3 py-2 text-right">Ações</th>,
+                    ]}
+                  </tr>
+                </thead>
                   <tbody>
                     {filteredCustomers.length === 0 && (
                       <tr>
@@ -1279,21 +1337,23 @@ const printDensityClass =
                         </td>
                       </tr>
                     )}
-                    {filteredCustomers.map(c => (
+                    {filteredCustomers.map(c => (                                        
                       <tr key={c.id} className="hover:bg-black/[.05]">
-                        <td className="px-3 py-2">{c.name}</td>
-                        <td className="px-3 py-2">{c.email ?? '—'}</td>
-                        <td className="px-3 py-2">{c.phone ?? '—'}</td> {/* + */}
-                        <td className="px-3 py-2">
-                          <div className="flex justify-end gap-2">
+                        {[
+                          <td key="nome" className="px-3 py-2">{c.name}</td>,
+                          <td key="email" className="px-3 py-2">{c.email ?? '—'}</td>,
+                          <td key="fone" className="px-3 py-2">{c.phone ?? '—'}</td>,
+                          <td key="acoes" className="px-3 py-2">
+                            <div className="flex justify-end gap-2">
                             <button className="icon-btn icon-btn--ghost" style={{ borderColor: 'var(--card-brd)' }} title="Editar" aria-label="Editar" onClick={() => openEditClient(c)}>
                               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>
                             </button>
                             <button className="icon-btn icon-btn--ghost" style={{ borderColor: 'var(--card-brd)' }} title="Excluir" aria-label="Excluir" onClick={() => deleteClient(c)}>
                               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3h6l1 2h5v2H3V5h5l1-2zM7 9h2v9H7V9zm4 0h2v9h-2V9zm4 0h2v9h-2V9z"/></svg>
                             </button>
-                          </div>
-                        </td>
+                            </div>
+                          </td>,
+                        ]}
                       </tr>
                     ))}
                   </tbody>
@@ -1355,14 +1415,17 @@ const printDensityClass =
 
               <div className="modal-body">
                 <table className="min-w-full text-sm">
-                  <thead className="table-header">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Descrição</th>
-                      <th className="px-3 py-2">UN</th>
-                      <th className="px-3 py-2 text-right">Preço</th>
-                      <th className="px-3 py-2 text-right">Ações</th>
-                    </tr>
-                  </thead>
+                <thead className="table-header">
+                  <tr>
+                    {[
+                      <th key="desc" className="px-3 py-2 text-left">Descrição</th>,
+                      <th key="un" className="px-3 py-2">UN</th>,
+                      <th key="preco" className="px-3 py-2 text-right">Preço</th>,
+                      <th key="acoes" className="px-3 py-2 text-right">Ações</th>,
+                    ]}
+                  </tr>
+                </thead>
+
                   <tbody>
                     {filteredProducts.length === 0 && (
                       <tr>
@@ -1373,21 +1436,23 @@ const printDensityClass =
                     )}
                     {filteredProducts.map(p => {
                       const price = customerId ? findUnitPrice(customerId, p.id) : Number(p.price);
-                      return (
+                      return (                   
                         <tr key={p.id} className="hover:bg-black/[.05]">
-                          <td className="px-3 py-2">{p.name}</td>
-                          <td className="px-3 py-2 text-center">{p.unit ?? '-'}</td>
-                          <td className="px-3 py-2 text-right">{brl.format(Number(price || 0))}</td>
-                          <td className="px-3 py-2">
+                        {[
+                          <td key="desc" className="px-3 py-2">{p.name}</td>,
+                          <td key="un" className="px-3 py-2 text-center">{p.unit ?? '-'}</td>,
+                          <td key="preco" className="px-3 py-2 text-right">{brl.format(Number(price || 0))}</td>,
+                          <td key="acoes" className="px-3 py-2">
                             <div className="flex justify-end gap-2">
-                              <button className="icon-btn icon-btn--ghost" style={{ borderColor: 'var(--card-brd)' }} title="Editar" aria-label="Editar" onClick={() => openEditProduct(p)}>
+                            <button className="icon-btn icon-btn--ghost" style={{ borderColor: 'var(--card-brd)' }} title="Editar" aria-label="Editar" onClick={() => openEditProduct(p)}>
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"/></svg>
                               </button>
                               <button className="icon-btn icon-btn--ghost" style={{ borderColor: 'var(--card-brd)' }} title="Excluir" aria-label="Excluir" onClick={() => deleteProduct(p)}>
                                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3h6l1 2h5v2H3V5h5l1-2zM7 9h2v9H7V9zm4 0h2v9h-2V9zm4 0h2v9h-2V9z"/></svg>
                               </button>
                             </div>
-                          </td>
+                          </td>,
+                        ]}
                         </tr>
                       );
                     })}
@@ -1422,16 +1487,18 @@ const printDensityClass =
                 {ordersError && <div className="px-3 py-6 text-sm text-red-600">{ordersError}</div>}
                 {!ordersLoading && !ordersError && (
                   <table className="min-w-full text-sm">
-                    <thead className="table-header">
-                      <tr>
-                        <th className="px-3 py-2 text-left">Nº</th>
-                        <th className="px-3 py-2 text-left">Cliente</th>
-                        <th className="px-3 py-2 text-right">Itens</th>
-                        <th className="px-3 py-2 text-right">Total</th>
-                        <th className="px-3 py-2 text-left">Emissão</th>
-                        <th className="px-3 py-2 text-right">Ações</th>
-                      </tr>
-                    </thead>
+                  <thead className="table-header">
+                    <tr>
+                      {[
+                        <th key="n" className="px-3 py-2 text-left">Nº</th>,
+                        <th key="cliente" className="px-3 py-2 text-left">Cliente</th>,
+                        <th key="itens" className="px-3 py-2 text-right">Itens</th>,
+                        <th key="total" className="px-3 py-2 text-right">Total</th>,
+                        <th key="emissao" className="px-3 py-2 text-left">Emissão</th>,
+                        <th key="acoes" className="px-3 py-2 text-right">Ações</th>,
+                      ]}
+                    </tr>
+                  </thead>
                     <tbody>
                       {filteredOrders.length === 0 && (
                         <tr>
@@ -1448,12 +1515,13 @@ const printDensityClass =
                               : `https://wa.me/?text=${encodeURIComponent(msg)}`; // fallback sem número
                         return (
                           <tr key={o.id} className="hover:bg-black/[.05]">
-                            <td className="px-3 py-2">#{o.number}</td>
-                            <td className="px-3 py-2">{o.customer?.name ?? '—'}</td>
-                            <td className="px-3 py-2 text-right">{o.items?.length ?? '—'}</td>
-                            <td className="px-3 py-2 text-right">{brl.format(Number(o.total || 0))}</td>
-                            <td className="px-3 py-2">{o.createdAt ? new Date(o.createdAt).toLocaleString('pt-BR') : '—'}</td>
-                            <td className="px-3 py-2">
+                           {[ 
+                            <td key="n" className="px-3 py-2">#{o.number}</td>,
+                            <td key="c" className="px-3 py-2">{o.customer?.name ?? '—'}</td>,
+                            <td key="i" className="px-3 py-2 text-right">{o.items?.length ?? '—'}</td>,
+                            <td key="t" className="px-3 py-2 text-right">{brl.format(Number(o.total || 0))}</td>,
+                            <td key="d" className="px-3 py-2">{o.createdAt ? new Date(o.createdAt).toLocaleString('pt-BR') : '—'}</td>,
+                            <td key="a" className="px-3 py-2">
                               <div className="flex justify-end gap-2">
                                 {/* Visualizar (modal) */}
                                 <button
@@ -1507,8 +1575,8 @@ const printDensityClass =
                                   </svg>
                                 </button>
                               </div>
-                            </td>
-
+                            </td>,
+                          ]}
                           </tr>
                         );
                       })}
