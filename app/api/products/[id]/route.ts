@@ -1,21 +1,14 @@
+// app/api/products/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
-// Em Next 14+ os params podem vir como Promise.
-// Este helper lida com ambos os casos (sync/async).
-type RouteCtx = { params: Promise<{ id: string }> } | { params: { id: string } };
-
-async function getId(ctx: RouteCtx): Promise<string> {
-  const maybe = (ctx as any).params;
-  const p = (maybe && typeof maybe.then === 'function') ? await maybe : maybe;
-  return (p as { id: string }).id;
-}
+type Ctx = { params: Promise<{ id: string }> };
 
 // GET /api/products/:id
-export async function GET(_: Request, ctx: RouteCtx) {
+export async function GET(_: Request, { params }: Ctx) {
   try {
-    const id = await getId(ctx);
+    const { id } = await params;
 
     const row = await prisma.product.findFirst({
       where: { id, deletedAt: null },
@@ -40,9 +33,9 @@ export async function GET(_: Request, ctx: RouteCtx) {
 }
 
 // PUT /api/products/:id
-export async function PUT(req: Request, ctx: RouteCtx) {
+export async function PUT(req: Request, { params }: Ctx) {
   try {
-    const id = await getId(ctx);
+    const { id } = await params;
     const body: { name?: string; unit?: string; price?: number | string } = await req.json();
 
     const exists = await prisma.product.findFirst({
@@ -98,15 +91,14 @@ export async function PUT(req: Request, ctx: RouteCtx) {
   }
 }
 
-// DELETE /api/products/:id  -> SOFT DELETE
-export async function DELETE(_: Request, ctx: RouteCtx) {
+// DELETE /api/products/:id (soft delete)
+export async function DELETE(_: Request, { params }: Ctx) {
   try {
-    const id = await getId(ctx);
+    const { id } = await params;
 
     const exists = await prisma.product.findUnique({ where: { id } });
     if (!exists) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
-    // Soft delete: marca deletedAt (não quebra FKs)
     await prisma.product.update({
       where: { id },
       data: { deletedAt: new Date() },
