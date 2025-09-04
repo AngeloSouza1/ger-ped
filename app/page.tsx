@@ -112,7 +112,7 @@ export default function Page() {
       throw new Error('unauthorized');
     }
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json() as Promise<T>;
+    return (await r.json()) as T;
   }, [router]);
   
   
@@ -238,19 +238,33 @@ function normalizeItems(o: OrderPreview | OrderRow): ItemSummary[] {
 
   // Remover badge/ícone do Dev Overlay em dev
   useEffect(() => {
+    // se estiver depurando, pode inverter a condição para NÃO rodar em dev
     if (process.env.NODE_ENV !== 'development') return;
+  
+    const selectors = [
+      '[data-nextjs-devtools-overlay]',
+      '[data-nextjs-react-dev-overlay-badge]',
+      '[data-next-dev-overlay]',
+      'button[aria-label*="developer" i]',
+      'button[aria-label*="devtools" i]',
+      'button[aria-label*="next" i]',
+    ].join(',');
+  
     const removeBadge = () => {
-      document
-        .querySelectorAll(
-          '[data-nextjs-devtools-overlay], [data-nextjs-react-dev-overlay-badge], [data-next-dev-overlay], button[aria-label*="developer" i], button[aria-label*="devtools" i], button[aria-label*="next" i]'
-        )
-        .forEach(el => el.remove());
+      try {
+        document.querySelectorAll(selectors).forEach(el => el.remove());
+      } catch {
+        // ignora qualquer erro de seletor
+      }
     };
+  
     removeBadge();
     const obs = new MutationObserver(removeBadge);
     obs.observe(document.documentElement, { childList: true, subtree: true });
     return () => obs.disconnect();
   }, []);
+  
+  
 
   // Tema claro/escuro
   const [theme, setTheme] = useState<'light'|'dark'>('light');
@@ -278,6 +292,7 @@ function normalizeItems(o: OrderPreview | OrderRow): ItemSummary[] {
   useEffect(() => {
     const ac = new AbortController();
     (async () => {
+      let unauthorized = false;
       try {
         const [c, p, cp] = await Promise.all([
           getJson<Customer[]>('/api/customers', ac.signal),
@@ -286,23 +301,24 @@ function normalizeItems(o: OrderPreview | OrderRow): ItemSummary[] {
         ]);
         setCustomers(c);
         setProducts(p);
-        setCustPrices(
-                    cp.map((r) => ({
-                      customerId: r.customerId,
-                      productId : r.productId,
-                      price     : Number(r.price),
-                    }))
-                  );
-                } catch (err) {
-                  if (!(err instanceof Error) || err.message !== 'unauthorized') {
-                    setError('Falha ao carregar dados das APIs');
-                  }
-                } finally {    
-        setLoading(false);
+        setCustPrices(cp.map(r => ({
+          customerId: r.customerId,
+          productId : r.productId,
+          price     : Number(r.price),
+        })));
+      } catch (err) {
+        if (err instanceof Error && err.message === 'unauthorized') {
+          unauthorized = true; // vamos deixar o redirect cuidar
+        } else {
+          setError('Falha ao carregar dados das APIs');
+        }
+      } finally {
+        if (!unauthorized) setLoading(false);
       }
     })();
     return () => ac.abort();
   }, [getJson]);
+  
   
 
   const selectedCustomer = customers.find(c => c.id === customerId) || null;
@@ -706,6 +722,7 @@ const printDensityClass =
           const msg = e instanceof Error ? e.message : 'Erro ao excluir cliente.';
           pushToast('error', msg, { title: 'Erro' });
     }
+  }
 
   const [showProducts, setShowProducts] = useState(false);
   const [productFilter, setProductFilter] = useState('');
