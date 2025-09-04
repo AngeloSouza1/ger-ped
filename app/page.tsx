@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-
+import Image from 'next/image';
 
 
 type Customer = { id: string; name: string; email?: string | null; phone?: string | null };
@@ -19,15 +19,15 @@ type PrintItem = {
   total: number;
 };
 
-type PrintOrder = {
-  id?: string;
-  number: number | string;
-  customer?: { id?: string; name?: string; email?: string | null; phone?: string | null } | null;
-  notes?: string;
-  items: PrintItem[];
-  total: number;
-  issuedAt?: string;
-};
+// type PrintOrder = {
+//   id?: string;
+//   number: number | string;
+//   customer?: { id?: string; name?: string; email?: string | null; phone?: string | null } | null;
+//   notes?: string;
+//   items: PrintItem[];
+//   total: number;
+//   issuedAt?: string;
+// };
 
 
 
@@ -460,26 +460,15 @@ function normalizeItems(o: OrderPreview | OrderRow): ItemSummary[] {
 
   function printPage() { window.print(); }
 
-  // function buildWhatsAppText(o: any) {
-  //   const hasItems = Array.isArray(o.items) && o.items.length > 0;
-  //   const lines = hasItems
-  //     ? o.items.map((it: any) =>
-  //         `${it.quantity ?? it.qty ?? '-'} x ${it.name ?? it.product?.name ?? 'Item'} = ${brl.format(Number(it.total ?? ((it.quantity||0)*(it.unitPrice||0)) || 0))}`
-  //       ).join('%0A')
-  //     : 'Itens: —';
-  //   const header = `Pedido #${o.number ?? '—'} - ${o.customer?.name ?? ''}`;
-  //   const totalLine = `Total: ${brl.format(Number(o.total || 0))}`;
-  //   const obs = o.notes ? `Obs: ${o.notes}` : '';
-  //   return encodeURI(`${header}%0A${lines}%0A${totalLine}${obs ? '%0A'+obs : ''}`);
-  // }
 
-  function buildEmailParts(o: OrderPreview | OrderRow): { to: string; subject: string; body: string; mailto: string } {
-    const body    = buildWhatsAppSummary(o, 8);
-    const subject = `Pedido #${o.number ?? '—'} — ${o.customer?.name ?? ''}`;
-    const to      = o.customer?.email || '';
-    const mailto  = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    return { to, subject, body, mailto };
-  }
+
+  // function buildEmailParts(o: OrderPreview | OrderRow): { to: string; subject: string; body: string; mailto: string } {
+  //   const body    = buildWhatsAppSummary(o, 8);
+  //   const subject = `Pedido #${o.number ?? '—'} — ${o.customer?.name ?? ''}`;
+  //   const to      = o.customer?.email || '';
+  //   const mailto  = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  //   return { to, subject, body, mailto };
+  // }
 
 
 
@@ -543,7 +532,14 @@ const printDensityClass =
     return (
       <div className="copy">
         <div className="copy-header">
-          <img src="/logo.svg" alt="Logo" style={{ height: '28px' }} />
+          <Image
+              src="/logo.svg"
+              alt="Logo"
+              width={112}   // 4x 28px, ajuste como preferir
+              height={28}
+              priority
+              style={{ height: '28px', width: 'auto' }}
+            />          
           <div>
             <div className="copy-title">Emissão de pedidos</div>
             <div className="copy-sub">Pedido #{o.number ?? '—'} • Emitido em {o.issuedAt}</div>
@@ -916,12 +912,12 @@ const printDensityClass =
     };
   }
 
-  function printSavedOrder(o: OrderRow) {
-    const flat = flattenOrderForPreview(o);
-    setSaved(flat);
-    setTimeout(() => window.print(), 30);
-    setTimeout(() => setSaved(null), 800);
-  }
+  // function printSavedOrder(o: OrderRow) {
+  //   const flat = flattenOrderForPreview(o);
+  //   setSaved(flat);
+  //   setTimeout(() => window.print(), 30);
+  //   setTimeout(() => setSaved(null), 800);
+  // }
   
 
 
