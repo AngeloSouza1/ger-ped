@@ -39,6 +39,7 @@ model Product {
   items       OrderItem[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+  deletedAt DateTime?
 }
 
 model CustomerPrice {

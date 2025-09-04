@@ -11,13 +11,13 @@ type CustPrice = { customerId: string; productId: string; price: number | string
 
 // +++ TIPOS NOVOS (adicione no topo do arquivo)
 // Tipos para impressão/preview
-type PrintItem = {
-  name: string;
-  unit?: string | null;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-};
+// type PrintItem = {
+//   name: string;
+//   unit?: string | null;
+//   quantity: number;
+//   unitPrice: number;
+//   total: number;
+// };
 
 // type PrintOrder = {
 //   id?: string;
