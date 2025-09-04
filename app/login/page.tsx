@@ -1,9 +1,10 @@
 // app/login/page.tsx
 'use client';
 
-import { useState } from 'react';
+
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+import { useState, type KeyboardEvent } from 'react';
 
 export default function LoginPage() {
   const sp = useSearchParams();
@@ -120,8 +121,8 @@ export default function LoginPage() {
                 type={showPwd ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                onKeyUp={(e) => setCapsOn((e as any).getModifierState?.('CapsLock'))}
-                onKeyDown={(e) => setCapsOn((e as any).getModifierState?.('CapsLock'))}
+                onKeyUp={(e: KeyboardEvent<HTMLInputElement>) => setCapsOn(e.getModifierState('CapsLock'))}
+                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => setCapsOn(e.getModifierState('CapsLock'))}
                 autoComplete="current-password"
                 minLength={3}
                 required

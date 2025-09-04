@@ -10,6 +10,27 @@ type Product  = { id: string; name: string; unit?: string | null; price: number 
 type CustPrice = { customerId: string; productId: string; price: number | string };
 
 // +++ TIPOS NOVOS (adicione no topo do arquivo)
+// Tipos para impressão/preview
+type PrintItem = {
+  name: string;
+  unit?: string | null;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
+type PrintOrder = {
+  id?: string;
+  number: number | string;
+  customer?: { id?: string; name?: string; email?: string | null; phone?: string | null } | null;
+  notes?: string;
+  items: PrintItem[];
+  total: number;
+  issuedAt?: string;
+};
+
+
+
 type OrderItemAPI = {
   name?: string;
   unit?: string | null;
@@ -73,7 +94,6 @@ type Toast = {
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function Page() {
-  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -267,17 +287,17 @@ function normalizeItems(o: OrderPreview | OrderRow): ItemSummary[] {
         setCustomers(c);
         setProducts(p);
         setCustPrices(
-          cp.map((r: any) => ({
-            customerId: r.customerId,
-            productId : r.productId,
-            price     : Number(r.price),
-          }))
-        );
-      } catch (err: any) {
-        if (err?.message !== 'unauthorized') {
-          setError('Falha ao carregar dados das APIs');
-        }
-      } finally {
+                    cp.map((r) => ({
+                      customerId: r.customerId,
+                      productId : r.productId,
+                      price     : Number(r.price),
+                    }))
+                  );
+                } catch (err) {
+                  if (!(err instanceof Error) || err.message !== 'unauthorized') {
+                    setError('Falha ao carregar dados das APIs');
+                  }
+                } finally {    
         setLoading(false);
       }
     })();
@@ -565,7 +585,7 @@ const printDensityClass =
               <tr>
                 <td colSpan={minimal ? 5 : 6} style={{ textAlign: 'center', padding: '10mm 0' }}>— Sem itens —</td>
               </tr>
-            ) : o.items.map((it: any, i: number) => (
+            ) : o.items.map((it: FlatItem, i: number) => (
               <tr key={i}>
                 <td className="center">{i + 1}</td>
                 <td className="desc">{it.name}</td>
@@ -665,8 +685,9 @@ const printDensityClass =
       }
   
       setClientFormOpen(false);
-    } catch (e: any) {
-      pushToast('error', e.message || 'Erro ao salvar cliente.', { title: 'Erro' });
+    } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'Erro ao salvar cliente.';
+          pushToast('error', msg, { title: 'Erro' });
     } finally {
       setClientSaving(false);
     }
@@ -681,10 +702,10 @@ const printDensityClass =
       setCustomers(prev => prev.filter(x => x.id !== c.id));
       if (customerId === c.id) setCustomerId('');
       pushToast('success', 'Cliente excluído!', { title: 'Sucesso' });
-    } catch (e: any) {
-      pushToast('error', e.message || 'Erro ao excluir cliente.', { title: 'Erro' });
+    } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'Erro ao excluir cliente.';
+          pushToast('error', msg, { title: 'Erro' });
     }
-  }
 
   const [showProducts, setShowProducts] = useState(false);
   const [productFilter, setProductFilter] = useState('');
@@ -746,8 +767,9 @@ const printDensityClass =
         pushToast('success', 'Produto criado!', { title: 'Sucesso' });
       }
       setProductFormOpen(false);
-    } catch (e: any) {
-      pushToast('error', e.message || 'Erro ao salvar produto.', { title: 'Erro' });
+    }  catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Erro ao salvar produto.';
+            pushToast('error', msg, { title: 'Erro' });
     } finally {
       setProductSaving(false);
     }
@@ -761,8 +783,9 @@ const printDensityClass =
       setProducts(prev => prev.filter(x => x.id !== p.id));
       setItems(prev => prev.filter(it => it.productId !== p.id));
       pushToast('success', 'Produto excluído!', { title: 'Sucesso' });
-    } catch (e: any) {
-      pushToast('error', e.message || 'Erro ao excluir produto.', { title: 'Erro' });
+    } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : 'Erro ao excluir produto.';
+          pushToast('error', msg, { title: 'Erro' });
     }
   }
 
@@ -847,7 +870,7 @@ const printDensityClass =
   
    // Converte OrderRow (API) para o formato do PrintSlip/preview
    function flattenOrderForPreview(o: OrderRow): OrderPreview {
-    const items: FlatItem[] = (o.items ?? []).map((it) => {
+    const items: FlatItem[] = (o.items ?? []).map((it: OrderItemAPI) => {
       const qty = Number(it.quantity ?? it.qty ?? 0);
       const unitPrice = Number(it.unitPrice ?? it.price ?? it.product?.price ?? 0);
       const total = Number(it.total ?? (qty * unitPrice));
