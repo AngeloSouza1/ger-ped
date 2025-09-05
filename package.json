@@ -10,13 +10,11 @@
     "build": "next build --turbopack",
     "start": "next start -p ${PORT:-3000}",
     "lint": "next lint",
-
     "prepare": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
-
     "seed": "npm run db:seed"
   },
   "dependencies": {
@@ -36,6 +34,7 @@
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^7.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",

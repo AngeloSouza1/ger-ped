@@ -172,16 +172,32 @@ export async function generateOrderPdfBuffer(order: OrderLike): Promise<Buffer> 
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
+
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdf = await page.pdf({
+    // opcional: garante cores de tela
+    await page.emulateMediaType('screen');
+
+    const pdfData: unknown = await page.pdf({
       format: 'A4',
       printBackground: true,
       margin: { top: '8mm', bottom: '8mm', left: '8mm', right: '8mm' },
       preferCSSPageSize: true,
     });
-    return pdf; // Buffer
+
+    // Normaliza para Buffer sem usar `any`
+    let pdfBuffer: Buffer;
+    if (pdfData instanceof Buffer) {
+      pdfBuffer = pdfData;
+    } else if (pdfData instanceof Uint8Array) {
+      pdfBuffer = Buffer.from(pdfData);
+    } else {
+      // fallback (não esperado): converte para string e bufferiza
+      pdfBuffer = Buffer.from(String(pdfData));
+    }
+
+    return pdfBuffer;
   } finally {
     await browser.close();
   }
